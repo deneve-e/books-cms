@@ -6,6 +6,7 @@ import {
   CreateBookInput,
   DeleteBookResponse,
   UpdateBookInput,
+  SearchBooksInput,
 } from './book.graphql';
 
 @Resolver(() => BookModel)
@@ -35,5 +36,12 @@ export class BooksResolver {
   @Mutation(() => DeleteBookResponse)
   async deleteBook(@Args('id') id: number): Promise<DeleteBookResponse> {
     return this.booksService.remove(id);
+  }
+
+  @Query(() => [BookModel])
+  async searchBooks(
+    @Args('searchBooksInput') searchBooksInput: SearchBooksInput,
+  ) {
+    return this.booksService.searchBooks(searchBooksInput);
   }
 }

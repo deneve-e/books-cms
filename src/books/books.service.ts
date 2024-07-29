@@ -6,6 +6,7 @@ import { Book } from './book.entity';
 import {
   CreateBookInput,
   DeleteBookResponse,
+  SearchBooksInput,
   UpdateBookInput,
 } from './book.graphql';
 
@@ -52,5 +53,27 @@ export class BooksService {
       message: `Book with ID ${id} has been deleted`,
       id,
     };
+  }
+
+  async searchBooks(searchBooksInput: SearchBooksInput): Promise<Book[]> {
+    const { title, author, publicationYear } = searchBooksInput;
+    const query = this.bookRepository.createQueryBuilder('book');
+
+    if (title) {
+      query.andWhere('book.title ILIKE :title', { title: `%${title}%` });
+    }
+
+    if (author) {
+      query.andWhere('book.author ILIKE :author', { author: `%${author}%` });
+    }
+
+    if (publicationYear) {
+      query.andWhere(
+        'EXTRACT(YEAR FROM book.publicationDate) = :publicationYear',
+        { publicationYear },
+      );
+    }
+
+    return query.getMany();
   }
 }

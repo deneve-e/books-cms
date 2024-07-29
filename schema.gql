@@ -23,6 +23,13 @@ type DeleteBookResponse {
 type Query {
   books: [BookModel!]!
   book(id: Float!): BookModel!
+  searchBooks(searchBooksInput: SearchBooksInput!): [BookModel!]!
+}
+
+input SearchBooksInput {
+  title: String
+  author: String
+  publicationYear: Float
 }
 
 type Mutation {

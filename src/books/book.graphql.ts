@@ -53,3 +53,15 @@ export class DeleteBookResponse {
   @Field({ nullable: true })
   id?: number;
 }
+
+@InputType()
+export class SearchBooksInput {
+  @Field({ nullable: true })
+  title?: string;
+
+  @Field({ nullable: true })
+  author?: string;
+
+  @Field({ nullable: true })
+  publicationYear?: number;
+}
