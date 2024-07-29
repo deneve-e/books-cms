@@ -2,7 +2,7 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Book {
+type BookModel {
   id: Float!
   title: String!
   author: String!
@@ -14,13 +14,32 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type DeleteBookResponse {
+  success: Boolean!
+  message: String
+  id: Float
+}
+
 type Query {
-  books: [Book!]!
-  book(id: Float!): Book!
+  books: [BookModel!]!
+  book(id: Float!): BookModel!
 }
 
 type Mutation {
-  createBook(title: String!, author: String!, publicationDate: DateTime!): Book!
-  updateBook(id: Float!, title: String!, author: String!, publicationDate: DateTime!): Book!
-  deleteBook(id: Float!): Boolean!
+  createBook(createBookInput: CreateBookInput!): BookModel!
+  updateBook(updateBookInput: UpdateBookInput!): BookModel!
+  deleteBook(id: Float!): DeleteBookResponse!
+}
+
+input CreateBookInput {
+  title: String!
+  author: String!
+  publicationDate: DateTime!
+}
+
+input UpdateBookInput {
+  id: Float!
+  title: String
+  author: String
+  publicationDate: DateTime
 }
