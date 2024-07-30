@@ -21,9 +21,19 @@ type DeleteBookResponse {
 }
 
 type Query {
-  books: [BookModel!]!
+  books(sort: SortBooksInput, pagination: PaginationInput): [BookModel!]!
   book(id: Float!): BookModel!
   searchBooks(searchBooksInput: SearchBooksInput!): [BookModel!]!
+}
+
+input SortBooksInput {
+  field: String
+  order: String
+}
+
+input PaginationInput {
+  page: Float! = 1
+  limit: Float! = 10
 }
 
 input SearchBooksInput {

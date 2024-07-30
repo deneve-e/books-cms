@@ -65,3 +65,21 @@ export class SearchBooksInput {
   @Field({ nullable: true })
   publicationYear?: number;
 }
+
+@InputType()
+export class SortBooksInput {
+  @Field({ nullable: true })
+  field?: string;
+
+  @Field({ nullable: true })
+  order?: 'ASC' | 'DESC';
+}
+
+@InputType()
+export class PaginationInput {
+  @Field({ defaultValue: 1 })
+  page: number;
+
+  @Field({ defaultValue: 10 })
+  limit: number;
+}

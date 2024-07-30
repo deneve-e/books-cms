@@ -7,6 +7,8 @@ import {
   DeleteBookResponse,
   UpdateBookInput,
   SearchBooksInput,
+  SortBooksInput,
+  PaginationInput,
 } from './book.graphql';
 
 @Resolver(() => BookModel)
@@ -14,8 +16,13 @@ export class BooksResolver {
   constructor(private readonly booksService: BooksService) {}
 
   @Query(() => [BookModel])
-  async books() {
-    return this.booksService.findAll();
+  async books(
+    @Args({ name: 'sort', type: () => SortBooksInput, nullable: true })
+    sort: SortBooksInput,
+    @Args({ name: 'pagination', type: () => PaginationInput, nullable: true })
+    pagination: PaginationInput,
+  ) {
+    return this.booksService.findAll(sort, pagination);
   }
 
   @Query(() => BookModel)

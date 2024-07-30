@@ -6,7 +6,9 @@ import { Book } from './book.entity';
 import {
   CreateBookInput,
   DeleteBookResponse,
+  PaginationInput,
   SearchBooksInput,
+  SortBooksInput,
   UpdateBookInput,
 } from './book.graphql';
 
@@ -22,8 +24,23 @@ export class BooksService {
     return this.bookRepository.save(book);
   }
 
-  async findAll(): Promise<Book[]> {
-    return this.bookRepository.find();
+  async findAll(
+    sort?: SortBooksInput,
+    pagination?: PaginationInput,
+  ): Promise<Book[]> {
+    const { field = 'id', order = 'ASC' } = sort || {};
+    const { page = 1, limit = 10 } = pagination || {};
+
+    const qb = this.bookRepository.createQueryBuilder('book');
+
+    if (field && order) {
+      qb.orderBy(`book.${field}`, order);
+    }
+
+    qb.skip((page - 1) * limit);
+    qb.take(limit);
+
+    return qb.getMany();
   }
 
   async findOne(id: number): Promise<Book> {
