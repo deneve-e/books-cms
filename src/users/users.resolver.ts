@@ -1,4 +1,6 @@
 import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { GraphQLError } from 'graphql';
+import { ConflictException } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 import { CreateUserInput, UserModel } from './user.graphql';
@@ -9,6 +11,15 @@ export class UsersResolver {
 
   @Mutation(() => UserModel)
   async createUser(@Args('createUserInput') createUserInput: CreateUserInput) {
-    return this.usersService.createUser(createUserInput);
+    try {
+      return this.usersService.createUser(createUserInput);
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw new GraphQLError(error.message, {
+          extensions: { code: 'CONFLICT' },
+        });
+      }
+      throw error;
+    }
   }
 }
