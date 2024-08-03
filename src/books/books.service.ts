@@ -1,7 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-
+import { Injectable, Inject } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { Book } from './book.entity';
 import {
   CreateBookInput,
@@ -14,83 +12,38 @@ import {
 
 @Injectable()
 export class BooksService {
-  constructor(
-    @InjectRepository(Book)
-    private readonly bookRepository: Repository<Book>,
-  ) {}
+  constructor(@Inject('BOOKS_SERVICE') private client: ClientProxy) {}
 
-  async create(createBookInput: CreateBookInput): Promise<Book> {
-    const book = this.bookRepository.create(createBookInput);
-    return this.bookRepository.save(book);
+  create(createBookInput: CreateBookInput): Promise<Book> {
+    return this.client.send<Book>('create_book', createBookInput).toPromise();
   }
 
-  async findAll(
+  findAll(
     sort?: SortBooksInput,
     pagination?: PaginationInput,
   ): Promise<Book[]> {
-    const { field = 'id', order = 'ASC' } = sort || {};
-    const { page = 1, limit = 10 } = pagination || {};
-
-    const qb = this.bookRepository.createQueryBuilder('book');
-
-    if (field && order) {
-      qb.orderBy(`book.${field}`, order);
-    }
-
-    qb.skip((page - 1) * limit);
-    qb.take(limit);
-
-    return qb.getMany();
+    return this.client
+      .send<Book[]>('find_all_books', { sort, pagination })
+      .toPromise();
   }
 
-  async findOne(id: number): Promise<Book> {
-    const book = await this.bookRepository.findOne({ where: { id } });
-    if (!book) {
-      throw new NotFoundException(`Book with ID ${id} not found`);
-    }
-    return book;
+  findOne(id: number): Promise<Book> {
+    return this.client.send<Book>('find_one_book', id).toPromise();
   }
 
-  async update(id: number, updateBookInput: UpdateBookInput): Promise<Book> {
-    await this.bookRepository.update(id, updateBookInput);
-    const updatedBook = await this.bookRepository.findOne({ where: { id } });
-    if (!updatedBook) {
-      throw new NotFoundException(`Book with ID ${id} not found`);
-    }
-    return updatedBook;
+  update(id: number, updateBookInput: UpdateBookInput): Promise<Book> {
+    return this.client
+      .send<Book>('update_book', { id, updateBookInput })
+      .toPromise();
   }
 
-  async remove(id: number): Promise<DeleteBookResponse> {
-    const result = await this.bookRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Book with ID ${id} not found`);
-    }
-    return {
-      success: true,
-      message: `Book with ID ${id} has been deleted`,
-      id,
-    };
+  remove(id: number): Promise<DeleteBookResponse> {
+    return this.client.send<DeleteBookResponse>('remove_book', id).toPromise();
   }
 
-  async searchBooks(searchBooksInput: SearchBooksInput): Promise<Book[]> {
-    const { title, author, publicationYear } = searchBooksInput;
-    const query = this.bookRepository.createQueryBuilder('book');
-
-    if (title) {
-      query.andWhere('book.title ILIKE :title', { title: `%${title}%` });
-    }
-
-    if (author) {
-      query.andWhere('book.author ILIKE :author', { author: `%${author}%` });
-    }
-
-    if (publicationYear) {
-      query.andWhere(
-        'EXTRACT(YEAR FROM book.publicationDate) = :publicationYear',
-        { publicationYear },
-      );
-    }
-
-    return query.getMany();
+  searchBooks(searchBooksInput: SearchBooksInput): Promise<Book[]> {
+    return this.client
+      .send<Book[]>('search_books', searchBooksInput)
+      .toPromise();
   }
 }
