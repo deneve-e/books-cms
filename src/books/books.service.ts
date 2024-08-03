@@ -5,8 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { catchError, timeout } from 'rxjs/operators';
-import { throwError, TimeoutError, Observable, firstValueFrom } from 'rxjs';
+import {
+  catchError,
+  timeout,
+  throwError,
+  TimeoutError,
+  Observable,
+  firstValueFrom,
+} from 'rxjs';
+
 import { Book } from './book.entity';
 import {
   CreateBookInput,
