@@ -48,4 +48,33 @@ export class UsersService {
     }
     return null;
   }
+
+  async createAdmin(createUserInput: CreateUserInput): Promise<User> {
+    const { email, password } = createUserInput;
+
+    // Check if user already exists
+    const existingUser = await this.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
+    // Hash password
+    const hashedPassword = await hash(password, 10);
+
+    // Create new admin user
+    const user = this.userRepository.create({
+      email,
+      password: hashedPassword,
+      role: 'ADMIN',
+    });
+
+    return this.userRepository.save(user);
+  }
+
+  async adminExists(): Promise<boolean> {
+    const adminCount = await this.userRepository.count({
+      where: { role: 'ADMIN' },
+    });
+    return adminCount > 0;
+  }
 }
