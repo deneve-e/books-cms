@@ -19,7 +19,7 @@ export class AuthResolver {
       loginInput.password,
     );
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Invalid credentials');
     }
     return this.authService.login(user);
   }
@@ -28,5 +28,13 @@ export class AuthResolver {
   @UseGuards(GqlAuthGuard)
   async currentUser(@CurrentUser() user: User) {
     return user;
+  }
+
+  // Optionally, add a logout mutation if to implement token blacklisting
+  @Mutation(() => Boolean)
+  @UseGuards(GqlAuthGuard)
+  async logout(@CurrentUser() user: User) {
+    // Implement logout logic here, e.g., blacklisting the token
+    return true;
   }
 }

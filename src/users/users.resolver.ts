@@ -12,7 +12,7 @@ export class UsersResolver {
   @Mutation(() => UserModel)
   async createUser(@Args('createUserInput') createUserInput: CreateUserInput) {
     try {
-      return this.usersService.createUser(createUserInput);
+      return this.usersService.create(createUserInput);
     } catch (error) {
       if (error instanceof ConflictException) {
         throw new GraphQLError(error.message, {

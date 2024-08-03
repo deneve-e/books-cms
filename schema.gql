@@ -58,6 +58,7 @@ type Mutation {
   updateBook(updateBookInput: UpdateBookInput!): BookModel!
   deleteBook(id: Float!): DeleteBookResponse!
   login(loginInput: LoginInput!): AuthPayload!
+  logout: Boolean!
   createUser(createUserInput: CreateUserInput!): UserModel!
 }
 

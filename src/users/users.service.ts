@@ -13,25 +13,28 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async createUser(createUserInput: CreateUserInput): Promise<User> {
+  async create(createUserInput: CreateUserInput): Promise<User> {
     const { email, password } = createUserInput;
+
+    // Check if user already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
+    // Hash password
     const hashedPassword = await hash(password, 10);
+
+    // Create new user
     const user = this.userRepository.create({
       email,
       password: hashedPassword,
+      role: 'USER', // Default role
     });
 
-    try {
-      return await this.userRepository.save(user);
-    } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        error.message.includes('duplicate key value violates unique constraint')
-      ) {
-        throw new ConflictException('Email already exists');
-      }
-      throw error;
-    }
+    return this.userRepository.save(user);
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
