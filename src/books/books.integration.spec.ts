@@ -66,7 +66,7 @@ describe('BooksService Integration', () => {
   });
 
   describe('create', () => {
-    it('should create a book', async () => {
+    it('should create a book and cache it', async () => {
       const createBookInput: CreateBookInput = {
         title: 'Test Book',
         author: 'Test Author',
@@ -75,6 +75,7 @@ describe('BooksService Integration', () => {
 
       const mockBook = { id: 1, ...createBookInput };
       mockRedisClient.send.mockReturnValueOnce(of(mockBook));
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // For cache set
 
       const result = await booksService.create(createBookInput);
 
@@ -82,9 +83,13 @@ describe('BooksService Integration', () => {
         'create_book',
         createBookInput,
       );
+      expect(mockRedisClient.send).toHaveBeenCalledWith('cache_set', {
+        key: `book:1`,
+        value: mockBook,
+        ttl: 3600,
+      });
       expect(result).toEqual(mockBook);
     });
-
     it('should handle errors when creating a book', async () => {
       const createBookInput: CreateBookInput = {
         title: 'Test Book',
@@ -103,7 +108,7 @@ describe('BooksService Integration', () => {
   });
 
   describe('findAll', () => {
-    it('should find all books with sorting and pagination', async () => {
+    it('should find all books with sorting and pagination, and cache the result', async () => {
       const mockBooks = [
         { id: 1, title: 'Book 1', author: 'Author 1' },
         { id: 2, title: 'Book 2', author: 'Author 2' },
@@ -111,14 +116,42 @@ describe('BooksService Integration', () => {
       const sort: SortBooksInput = { field: 'title', order: 'ASC' };
       const pagination: PaginationInput = { page: 1, limit: 10 };
 
-      mockRedisClient.send.mockReturnValueOnce(of(mockBooks));
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache miss
+      mockRedisClient.send.mockReturnValueOnce(of(mockBooks)); // Database query
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache set
 
       const result = await booksService.findAll(sort, pagination);
 
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_get',
+        expect.any(String),
+      );
       expect(mockRedisClient.send).toHaveBeenCalledWith('find_all_books', {
         sort,
         pagination,
       });
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_set',
+        expect.any(Object),
+      );
+      expect(result).toEqual(mockBooks);
+    });
+
+    it('should return cached books if available', async () => {
+      const mockBooks = [
+        { id: 1, title: 'Book 1', author: 'Author 1' },
+        { id: 2, title: 'Book 2', author: 'Author 2' },
+      ];
+
+      mockRedisClient.send.mockReturnValueOnce(of(mockBooks)); // Cache hit
+
+      const result = await booksService.findAll();
+
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_get',
+        expect.any(String),
+      );
+      expect(mockRedisClient.send).not.toHaveBeenCalledWith('find_all_books');
       expect(result).toEqual(mockBooks);
     });
 
@@ -134,13 +167,32 @@ describe('BooksService Integration', () => {
   });
 
   describe('findOne', () => {
-    it('should find one book', async () => {
+    it('should find one book and cache it if not in cache', async () => {
       const mockBook = { id: 1, title: 'Book 1', author: 'Author 1' };
-      mockRedisClient.send.mockReturnValueOnce(of(mockBook));
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache miss
+      mockRedisClient.send.mockReturnValueOnce(of(mockBook)); // Database query
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache set
 
       const result = await booksService.findOne(1);
 
+      expect(mockRedisClient.send).toHaveBeenCalledWith('cache_get', 'book:1');
       expect(mockRedisClient.send).toHaveBeenCalledWith('find_one_book', 1);
+      expect(mockRedisClient.send).toHaveBeenCalledWith('cache_set', {
+        key: 'book:1',
+        value: mockBook,
+        ttl: 3600,
+      });
+      expect(result).toEqual(mockBook);
+    });
+
+    it('should return cached book if available', async () => {
+      const mockBook = { id: 1, title: 'Book 1', author: 'Author 1' };
+      mockRedisClient.send.mockReturnValueOnce(of(mockBook)); // Cache hit
+
+      const result = await booksService.findOne(1);
+
+      expect(mockRedisClient.send).toHaveBeenCalledWith('cache_get', 'book:1');
+      expect(mockRedisClient.send).not.toHaveBeenCalledWith('find_one_book');
       expect(result).toEqual(mockBook);
     });
 
@@ -156,7 +208,7 @@ describe('BooksService Integration', () => {
   });
 
   describe('update', () => {
-    it('should update a book', async () => {
+    it('should update a book and update the cache', async () => {
       const updateBookInput: UpdateBookInput = { id: 1, title: 'Updated Book' };
       const mockUpdatedBook = {
         id: 1,
@@ -164,13 +216,19 @@ describe('BooksService Integration', () => {
         author: 'Author 1',
       };
 
-      mockRedisClient.send.mockReturnValueOnce(of(mockUpdatedBook));
+      mockRedisClient.send.mockReturnValueOnce(of(mockUpdatedBook)); // Database update
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache set
 
       const result = await booksService.update(1, updateBookInput);
 
       expect(mockRedisClient.send).toHaveBeenCalledWith('update_book', {
         id: 1,
         updateBookInput,
+      });
+      expect(mockRedisClient.send).toHaveBeenCalledWith('cache_set', {
+        key: 'book:1',
+        value: mockUpdatedBook,
+        ttl: 3600,
       });
       expect(result).toEqual(mockUpdatedBook);
     });
@@ -192,18 +250,23 @@ describe('BooksService Integration', () => {
   });
 
   describe('remove', () => {
-    it('should remove a book', async () => {
+    it('should remove a book and delete it from cache', async () => {
       const mockDeleteResponse: DeleteBookResponse = {
         success: true,
         message: 'Book deleted',
         id: 1,
       };
 
-      mockRedisClient.send.mockReturnValueOnce(of(mockDeleteResponse));
+      mockRedisClient.send.mockReturnValueOnce(of(mockDeleteResponse)); // Database delete
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache delete
 
       const result = await booksService.remove(1);
 
       expect(mockRedisClient.send).toHaveBeenCalledWith('remove_book', 1);
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_delete',
+        'book:1',
+      );
       expect(result).toEqual(mockDeleteResponse);
     });
 
@@ -219,21 +282,50 @@ describe('BooksService Integration', () => {
   });
 
   describe('searchBooks', () => {
-    it('should search books', async () => {
+    it('should search books and cache the result', async () => {
       const searchInput: SearchBooksInput = { title: 'Test' };
       const mockBooks = [
         { id: 1, title: 'Test Book 1', author: 'Author 1' },
         { id: 2, title: 'Test Book 2', author: 'Author 2' },
       ];
 
-      mockRedisClient.send.mockReturnValueOnce(of(mockBooks));
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache miss
+      mockRedisClient.send.mockReturnValueOnce(of(mockBooks)); // Database query
+      mockRedisClient.send.mockReturnValueOnce(of(null)); // Cache set
 
       const result = await booksService.searchBooks(searchInput);
 
       expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_get',
+        expect.any(String),
+      );
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
         'search_books',
         searchInput,
       );
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_set',
+        expect.any(Object),
+      );
+      expect(result).toEqual(mockBooks);
+    });
+
+    it('should return cached search results if available', async () => {
+      const searchInput: SearchBooksInput = { title: 'Test' };
+      const mockBooks = [
+        { id: 1, title: 'Test Book 1', author: 'Author 1' },
+        { id: 2, title: 'Test Book 2', author: 'Author 2' },
+      ];
+
+      mockRedisClient.send.mockReturnValueOnce(of(mockBooks)); // Cache hit
+
+      const result = await booksService.searchBooks(searchInput);
+
+      expect(mockRedisClient.send).toHaveBeenCalledWith(
+        'cache_get',
+        expect.any(String),
+      );
+      expect(mockRedisClient.send).not.toHaveBeenCalledWith('search_books');
       expect(result).toEqual(mockBooks);
     });
 

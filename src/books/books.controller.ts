@@ -2,6 +2,8 @@ import { Controller, NotFoundException } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import Redis from 'ioredis';
+
 import { Book } from './book.entity';
 import {
   CreateBookInput,
@@ -14,10 +16,17 @@ import {
 
 @Controller()
 export class BooksController {
+  private redis: Redis;
+
   constructor(
     @InjectRepository(Book)
     private readonly bookRepository: Repository<Book>,
-  ) {}
+  ) {
+    this.redis = new Redis({
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT, 10),
+    });
+  }
 
   @MessagePattern('create_book')
   async create(@Payload() createBookInput: CreateBookInput): Promise<Book> {
@@ -103,5 +112,23 @@ export class BooksController {
     }
 
     return query.getMany();
+  }
+
+  @MessagePattern('cache_set')
+  async cacheSet(
+    @Payload() data: { key: string; value: any; ttl: number },
+  ): Promise<void> {
+    await this.redis.set(data.key, JSON.stringify(data.value), 'EX', data.ttl);
+  }
+
+  @MessagePattern('cache_get')
+  async cacheGet(@Payload() key: string): Promise<any> {
+    const value = await this.redis.get(key);
+    return value ? JSON.parse(value) : null;
+  }
+
+  @MessagePattern('cache_delete')
+  async cacheDelete(@Payload() key: string): Promise<void> {
+    await this.redis.del(key);
   }
 }
