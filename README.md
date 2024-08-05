@@ -19,7 +19,7 @@ To get started with the project, follow these steps:
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/yourusername/books-cms.git
+   git clone https://github.com/deneve-e/books-cms.git
    cd books-cms
    ```
 
